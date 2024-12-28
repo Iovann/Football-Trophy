@@ -7,7 +7,7 @@ export class Ball extends Moveable {
 
     constructor(x: number, y: number) {
         super(x, y, '/ball.svg');
-        this.velocityY = 2;
+        this.velocityY = 5;
         this.lane = Math.floor(Math.random() * 3);
         this.x = 30 + (this.lane * 100);
         this.y = 0;
@@ -18,7 +18,7 @@ export class Ball extends Moveable {
     }
 
     isOutOfBounds(): boolean {
-        return this.y > 600;
+        return this.y > 580;
     }
 
     checkCollision(goalkeeper: Goalkeeper): boolean {

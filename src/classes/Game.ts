@@ -11,13 +11,13 @@ export class Game {
   private gameStarted: boolean;
   private isPaused: boolean;
   private scoreDisplay: HTMLElement | null;
+  private animationFrameId: number | null = null;
 
   constructor() {
     this.canvas = document.createElement("canvas");
     this.canvas.width = 300;
     this.canvas.height = 500;
     this.canvas.style.backgroundColor = "#2B382C";
-    this.canvas.className = "ml-4";
     this.ctx = this.canvas.getContext("2d")!;
 
     this.goalkeeper = new Goalkeeper(100, 450);
@@ -31,22 +31,20 @@ export class Game {
     document.querySelector("#app")!.appendChild(this.canvas);
     this.setupControls();
     this.setupKeyboardControls();
-
-    this.waitForImages();
   }
 
-  private waitForImages() {
+  private waitForImages(callback: () => void) {
     if (this.goalkeeper.isImageLoaded() && this.ball.isImageLoaded()) {
       this.gameStarted = true;
-      this.start();
+      callback();
     } else {
-      setTimeout(() => this.waitForImages(), 100);
+      setTimeout(() => this.waitForImages(callback), 100);
     }
   }
 
   private setupControls() {
     const controls = document.createElement("div");
-    controls.className = "fixed right-0 top-0 h-full w-64 bg-green-900/50 p-4";
+    controls.className = "fixed right-0 top-0 h-full w-64 bg-side p-4";
 
     const scoreContainer = document.createElement("div");
     scoreContainer.className = "mb-8";
@@ -63,7 +61,16 @@ export class Game {
     buttonsContainer.className = "flex flex-col gap-2";
 
     const buttons = [
-      { text: "Jouer", onClick: () => this.start() },
+      { 
+        text: "Jouer", 
+        onClick: () => {
+          if (!this.gameStarted) {
+            this.waitForImages(() => this.start());
+          } else {
+            this.restart();
+          }
+        }
+      },
       { text: "Pause", onClick: () => this.pauseGame() },
       { text: "Play", onClick: () => this.resumeGame() },
       { text: "Meilleur Score", onClick: () => {} },
@@ -74,9 +81,9 @@ export class Game {
     buttons.forEach(({ text, onClick }) => {
       const button = document.createElement("button");
       button.textContent = text;
-      button.onclick = onClick;
+      button.addEventListener("click", onClick);
       button.className =
-        "w-full p-3 bg-green-800/50 hover:bg-green-700/50 text-white border border-green-600/30 rounded transition-colors";
+        "w-full p-3 button text-white border rounded transition-colors border-none shadow-md";
       buttonsContainer.appendChild(button);
     });
 
@@ -112,25 +119,24 @@ export class Game {
       this.resetBall();
     }
 
-    if (this.ball.isOutOfBounds()) {
+    if (this.ball.getPosition().y > 600) {
       this.gameOver = true;
     }
   }
 
   draw() {
-    if (!this.gameStarted) return;
-
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
     this.ctx.strokeStyle = "#0D2F28";
     this.ctx.lineWidth = 4;
     for (let i = 1; i < 3; i++) {
       this.ctx.beginPath();
-      this.ctx.moveTo(i * 100, 0); // Chaque ligne à 100px, 200px
+      this.ctx.moveTo(i * 100, 0);
       this.ctx.lineTo(i * 100, this.canvas.height);
       this.ctx.stroke();
     }
 
+    if (!this.gameStarted) return;
     const keeperPos = this.goalkeeper.getPosition();
     const ballPos = this.ball.getPosition();
 
@@ -148,22 +154,29 @@ export class Game {
 
     if (this.gameOver) {
       alert("Game Over!");
+      this.restart();
+      return;
     }
   }
 
   private resetBall() {
-    this.ball = new Ball(0, 0); // La position X sera définie dans le constructeur de Ball
+    this.ball = new Ball(0, 0);
   }
 
   restart() {
     this.score = 0;
     this.gameOver = false;
-    this.goalkeeper = new Goalkeeper(350, 500);
+    this.goalkeeper = new Goalkeeper(100, 450);
     this.resetBall();
+    this.updateScoreDisplay();
   }
 
   private pauseGame() {
     this.isPaused = true;
+    if (this.animationFrameId) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
   }
 
   private resumeGame() {
@@ -185,8 +198,12 @@ export class Game {
         this.update();
         this.draw();
       }
-      requestAnimationFrame(gameLoop);
+      this.animationFrameId = requestAnimationFrame(gameLoop);
     };
+    
+    if (this.animationFrameId) {
+      cancelAnimationFrame(this.animationFrameId);
+    }
     gameLoop();
   }
 }
